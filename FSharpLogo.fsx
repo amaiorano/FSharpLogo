@@ -30,7 +30,7 @@ type Canvas(width, height) =
     do
         picBox.Image <- (bitmap :> Image)
     let gfx = Graphics.FromImage(bitmap)
-    let pen = new Pen(Color.Black, 5.0f)
+    let pen = new Pen(Color.Black, 3.0f)
 
     let toGfxSpace (pt:Point) =
         Point(pt.X + width/2, height/2 - pt.Y)
@@ -118,10 +118,11 @@ let program =
             Repeat 10 [
                 Right 70
                 Forward 20
+                Backward 10
             ]
         ]
         Right 50
     ]
-    
+
 program |> ExecuteCommand
 canvas.Show()
