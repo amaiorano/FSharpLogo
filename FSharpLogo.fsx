@@ -8,6 +8,8 @@ type Command =
     | Backward of units:int
     | Right of degs:int
     | Left of degs:int
+    | PenUp
+    | PenDown
 
 let Repeat iterations command =
     DoRepeat(iterations, command)
@@ -63,13 +65,14 @@ type Turtle(canvas:Canvas) =
     let mutable penDown = true
     let mutable angle = Math.PI / 2.0;
     let facingVector () = Vector2(cos angle, sin angle)
-    member this.PenUp = penDown <- false
-    member this.PenDown = penDown <- true
+    member this.PenUp () = penDown <- false
+    member this.PenDown () = penDown <- true
     member this.FollowCommand (command:Command) =
         match command with
         | Forward units ->
             let targetPos = pos + facingVector() * (float)units
-            canvas.DrawLine(pos.asPoint, targetPos.asPoint)
+            if penDown then
+                canvas.DrawLine(pos.asPoint, targetPos.asPoint)
             pos <- targetPos
         | Backward units ->
             let targetPos = pos - facingVector() * (float)units
@@ -79,6 +82,10 @@ type Turtle(canvas:Canvas) =
             angle <- angle - (degToRad degrees)
         | Left degrees ->
             angle <- angle + (degToRad degrees)
+        | PenUp ->
+            this.PenUp ()
+        | PenDown ->
+            this.PenDown()
         | _ ->
             ()
 
@@ -102,7 +109,9 @@ let ExecuteCommands commands =
 
 let program =
     Repeat 15 [ 
+        PenUp
         Forward 350
+        PenDown
         Repeat 10 [
             Right 30
             Forward 50
