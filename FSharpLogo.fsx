@@ -5,7 +5,9 @@ open System
 type Command =
     | DoRepeat of iterations:int * Command list
     | Forward of units:int
+    | Backward of units:int
     | Right of degs:int
+    | Left of degs:int
 
 let Repeat iterations command =
     DoRepeat(iterations, command)
@@ -48,6 +50,7 @@ type Vector2(x:float, y:float) =
     member this.Y with get() = y and set (v) = y <- v
     member this.asPoint = Point(int(x + 0.5), int(y + 0.5))
     static member (+) (v1:Vector2, v2:Vector2) = Vector2(v1.X + v2.X, v1.Y + v2.Y)
+    static member (-) (v1:Vector2, v2:Vector2) = Vector2(v1.X - v2.X, v1.Y - v2.Y)
     static member (*) (v1:Vector2, s) = Vector2(v1.X * s, v1.Y * s)
 
 
@@ -58,7 +61,7 @@ let degToRad d = float(d) * System.Math.PI / 180.0
 type Turtle(canvas:Canvas) =
     let mutable pos = Vector2()
     let mutable penDown = true
-    let mutable angle = Math.PI/2.0;
+    let mutable angle = Math.PI / 2.0;
     let facingVector () = Vector2(cos angle, sin angle)
     member this.PenUp = penDown <- false
     member this.PenDown = penDown <- true
@@ -68,7 +71,13 @@ type Turtle(canvas:Canvas) =
             let targetPos = pos + facingVector() * (float)units
             canvas.DrawLine(pos.asPoint, targetPos.asPoint)
             pos <- targetPos
+        | Backward units ->
+            let targetPos = pos - facingVector() * (float)units
+            canvas.DrawLine(pos.asPoint, targetPos.asPoint)
+            pos <- targetPos
         | Right degrees ->
+            angle <- angle - (degToRad degrees)
+        | Left degrees ->
             angle <- angle + (degToRad degrees)
         | _ ->
             ()
@@ -85,6 +94,10 @@ let rec ExecuteCommand command =
             commandList |> Seq.iter ExecuteCommand
     | _ ->
         turtle.FollowCommand command
+
+let ExecuteCommands commands =
+    commands |> Seq.iter ExecuteCommand
+
 
 
 let program =
