@@ -3,7 +3,7 @@
 open System
 
 type Command =
-    | DoRepeat of iterations:int * Command list
+    | Repeat of iterations:int * Command list
     | Forward of units:int
     | Backward of units:int
     | Right of degs:int
@@ -11,9 +11,9 @@ type Command =
     | PenUp
     | PenDown
 
-let Repeat iterations command =
-    DoRepeat(iterations, command)
 
+let Repeat iterations command =
+    Repeat(iterations, command)
 
 #r "System.Windows.Forms"
 open System.Windows.Forms
@@ -96,7 +96,7 @@ let turtle = Turtle(canvas)
 
 let rec ExecuteCommand command =
     match command with
-    | DoRepeat (iterations, commandList) -> 
+    | Repeat (iterations, commandList) -> 
         for _ in 0..iterations do
             commandList |> Seq.iter ExecuteCommand
     | _ ->
@@ -104,8 +104,6 @@ let rec ExecuteCommand command =
 
 let ExecuteCommands commands =
     commands |> Seq.iter ExecuteCommand
-
-
 
 let program =
     Repeat 15 [ 
