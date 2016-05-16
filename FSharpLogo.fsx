@@ -2,18 +2,75 @@
 
 open System
 
+type Value =
+    | Immediate of int
+    | Variable of string
+
 type Command =
-    | Repeat of iterations:int * Command list
-    | Forward of units:int
-    | Backward of units:int
-    | Right of degs:int
-    | Left of degs:int
+    | Repeat of iterations:Value * Command list
+    | Forward of units:Value
+    | Backward of units:Value
+    | Right of degs:Value
+    | Left of degs:Value
     | PenUp
     | PenDown
+    | Make of string * int
+
+let Make name value =
+    Make (name, value) 
 
 
-let Repeat iterations command =
-    Repeat(iterations, command)
+
+// All off this machinery is to support commands that can take either an
+// immediate value or a variable name
+let (|Integer|_|) x =
+    let mutable r = 0
+    if System.Int32.TryParse (string x, &r) then Some r
+    else None
+
+let ValueFunc func (v:obj) =
+    match v with
+    | Integer(x) -> func (Immediate x)
+    | x -> func (Variable (string x))
+
+let BindValueFunc func = ValueFunc func
+
+let Repeat v c = BindValueFunc (fun x -> Repeat(x,c)) v
+let Forward v = BindValueFunc Forward v
+let Backward v = BindValueFunc Backward v
+let Right v = BindValueFunc Right v
+let Left v = BindValueFunc Left v
+
+// variable name -> int value data store
+open System.Collections.Generic
+let variables = new Dictionary<string, int>()
+
+let SetVariable name value =
+    if variables.ContainsKey name then variables.[name] = value |> ignore
+    else variables.Add (name, value) |> ignore
+
+let ReadValue value =
+    match value with
+    | Immediate v -> v
+    | Variable v -> variables.[v]
+
+// Active patterns to extract final int value
+let (|ForwardValue|_|) = function
+    | Forward value -> Some (ReadValue value)
+    | _ -> None
+
+let (|BackwardValue|_|) = function
+    | Backward value -> Some (ReadValue value)
+    | _ -> None
+
+let (|RightValue|_|) = function
+    | Right value -> Some (ReadValue value)
+    | _ -> None
+
+let (|LeftValue|_|) = function
+    | Left value -> Some (ReadValue value)
+    | _ -> None
+
 
 #r "System.Windows.Forms"
 open System.Windows.Forms
@@ -69,18 +126,19 @@ type Turtle(canvas:Canvas) =
     member this.PenDown () = penDown <- true
     member this.FollowCommand (command:Command) =
         match command with
-        | Forward units ->
+        | ForwardValue(units) ->
             let targetPos = pos + facingVector() * (float)units
             if penDown then
                 canvas.DrawLine(pos.asPoint, targetPos.asPoint)
             pos <- targetPos
-        | Backward units ->
+        | BackwardValue(units) ->
             let targetPos = pos - facingVector() * (float)units
-            canvas.DrawLine(pos.asPoint, targetPos.asPoint)
+            if penDown then
+                canvas.DrawLine(pos.asPoint, targetPos.asPoint)
             pos <- targetPos
-        | Right degrees ->
+        | RightValue(degrees) ->
             angle <- angle - (degToRad degrees)
-        | Left degrees ->
+        | LeftValue(degrees) ->
             angle <- angle + (degToRad degrees)
         | PenUp ->
             this.PenUp ()
@@ -97,23 +155,33 @@ let turtle = Turtle(canvas)
 let rec ExecuteCommand command =
     match command with
     | Repeat (iterations, commandList) -> 
-        for _ in 0..iterations do
+        for _ in 0..ReadValue(iterations) do
             commandList |> Seq.iter ExecuteCommand
+    | Make (name, value) ->
+        SetVariable name value
     | _ ->
         turtle.FollowCommand command
 
 let ExecuteCommands commands =
     commands |> Seq.iter ExecuteCommand
 
-let program =
-    Repeat 15 [ 
+
+let program = [
+    Make "Rpt1" 15
+    Make "Rpt2" 10
+    Make "Rpt3" 10
+    Make "Radius" 350
+    Make "HalfRadius" (350/2)
+    PenUp
+    Backward "HalfRadius"
+    Repeat "Rpt1" [ 
         PenUp
-        Forward 350
+        Forward "Radius"
         PenDown
-        Repeat 10 [
+        Repeat "Rpt2" [
             Right 30
             Forward 50
-            Repeat 10 [
+            Repeat "Rpt3" [
                 Right 70
                 Forward 20
                 Backward 10
@@ -121,6 +189,7 @@ let program =
         ]
         Right 50
     ]
+]
 
-program |> ExecuteCommand
+program |> ExecuteCommands
 canvas.Show()
